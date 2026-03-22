@@ -1,0 +1,7 @@
+{
+  "pages": {
+    "build": {
+      "output_dir": "public"
+    }
+  }
+}

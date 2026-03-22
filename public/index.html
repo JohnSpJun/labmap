@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LabMap</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1a1814;
+    --ink-2: #4a4740;
+    --ink-3: #8a8680;
+    --paper: #faf9f6;
+    --paper-2: #f2f0eb;
+    --paper-3: #e8e5de;
+    --rule: #d8d4cc;
+    --accent: #2d5a8e;
+    --accent-light: #e8f0f8;
+    --accent-2: #7a3b1e;
+    --accent-2-light: #f5ece7;
+    --node-a: #2d5a8e;
+    --node-b: #7a3b1e;
+    --node-c: #2d6b4a;
+    --node-d: #5a3b7a;
+    --node-e: #6b4a1a;
+    --serif: 'Lora', Georgia, serif;
+    --sans: 'DM Sans', system-ui, sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  header {
+    border-bottom: 1px solid var(--rule);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    height: 56px;
+    background: var(--paper);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .wordmark {
+    font-family: var(--serif);
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .wordmark-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+  }
+
+  .search-bar {
+    flex: 1;
+    max-width: 520px;
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    background: var(--paper);
+    overflow: hidden;
+    transition: border-color 0.15s;
+  }
+  .search-bar:focus-within { border-color: var(--accent); }
+
+  .search-mode-toggle {
+    display: flex;
+    border-right: 1px solid var(--rule);
+    flex-shrink: 0;
+  }
+  .mode-btn {
+    padding: 0 10px;
+    height: 36px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--ink-3);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    transition: background 0.1s, color 0.1s;
+    white-space: nowrap;
+  }
+  .mode-btn.active {
+    background: var(--accent-light);
+    color: var(--accent);
+  }
+
+  #search-input {
+    flex: 1;
+    border: none;
+    background: none;
+    padding: 0 12px;
+    height: 36px;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink);
+    outline: none;
+  }
+  #search-input::placeholder { color: var(--ink-3); }
+
+  #search-btn {
+    padding: 0 14px;
+    height: 36px;
+    border: none;
+    border-left: 1px solid var(--rule);
+    background: none;
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent);
+    transition: background 0.1s;
+    white-space: nowrap;
+  }
+  #search-btn:hover { background: var(--accent-light); }
+
+  .header-meta {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+
+  /* Layout */
+  .app-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100vh - 56px);
+  }
+
+  /* Sidebar */
+  #sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--rule);
+    overflow-y: auto;
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-section {
+    padding: 1.25rem 1.25rem 0;
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 1.25rem;
+  }
+
+  .sidebar-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 0.75rem;
+  }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    margin-top: 0.5rem;
+  }
+  .stat-card {
+    background: var(--paper-2);
+    border-radius: 6px;
+    padding: 10px 8px;
+    text-align: center;
+  }
+  .stat-num {
+    font-family: var(--serif);
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .stat-lbl {
+    font-size: 10px;
+    color: var(--ink-3);
+    margin-top: 4px;
+  }
+
+  /* Scholar card */
+  .scholar-card {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--paper-3);
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .scholar-card:hover { background: var(--paper-2); margin: 0 -1.25rem; padding: 12px 1.25rem; }
+  .scholar-card:last-child { border-bottom: none; }
+
+  .scholar-name {
+    font-family: var(--serif);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 3px;
+  }
+  .scholar-affil {
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .scholar-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .tag {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: var(--accent-light);
+    color: var(--accent);
+    font-weight: 500;
+  }
+
+  /* Detail panel */
+  #detail-panel {
+    padding: 1.25rem;
+    display: none;
+  }
+  .detail-name {
+    font-family: var(--serif);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+  .detail-affil {
+    font-size: 12px;
+    color: var(--ink-3);
+    margin-bottom: 12px;
+  }
+  .detail-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .detail-stat {
+    background: var(--paper-2);
+    border-radius: 5px;
+    padding: 8px 10px;
+  }
+  .detail-stat-n { font-size: 1.1rem; font-weight: 500; font-family: var(--serif); }
+  .detail-stat-l { font-size: 10px; color: var(--ink-3); margin-top: 2px; }
+
+  .pubs-list { margin-top: 8px; }
+  .pub-item {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--paper-3);
+    font-size: 11.5px;
+    color: var(--ink-2);
+    line-height: 1.4;
+  }
+  .pub-item:last-child { border-bottom: none; }
+  .pub-year {
+    font-size: 10px;
+    color: var(--ink-3);
+    margin-top: 3px;
+  }
+
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 0 10px;
+    font-family: var(--sans);
+  }
+
+  /* Detail tabs */
+  .detail-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--rule);
+    margin: 0 -1.25rem 1rem;
+    padding: 0 1.25rem;
+  }
+  .detail-tab {
+    font-size: 11px;
+    font-weight: 500;
+    padding: 6px 0;
+    margin-right: 18px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    color: var(--ink-3);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    font-family: var(--sans);
+    letter-spacing: 0.02em;
+    transition: color 0.1s;
+  }
+  .detail-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .detail-tab:hover:not(.active) { color: var(--ink-2); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Lab summary */
+  .summary-btn {
+    width: 100%;
+    padding: 9px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    background: none;
+    color: var(--accent);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.1s;
+    margin-bottom: 12px;
+  }
+  .summary-btn:hover { background: var(--accent-light); }
+  .summary-btn:disabled { opacity: 0.5; cursor: default; }
+
+  .summary-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--ink-3);
+    padding: 8px 0;
+  }
+  .summary-spinner {
+    width: 14px; height: 14px;
+    border: 1.5px solid var(--rule);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  .summary-body { font-size: 12px; line-height: 1.7; color: var(--ink-2); }
+  .summary-section { margin-bottom: 14px; }
+  .summary-section-title {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 5px;
+  }
+  .summary-section p { margin: 0; }
+  .theme-pill {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: var(--paper-2);
+    border: 1px solid var(--rule);
+    font-size: 11px;
+    color: var(--ink-2);
+    margin: 3px 3px 3px 0;
+  }
+
+  /* Graph */
+  #graph-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: var(--paper);
+  }
+
+  #graph-svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  /* Empty state */
+  #empty-state {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    pointer-events: none;
+  }
+  .empty-title {
+    font-family: var(--serif);
+    font-size: 1.4rem;
+    font-weight: 500;
+    color: var(--ink-2);
+    text-align: center;
+  }
+  .empty-sub {
+    font-size: 13px;
+    color: var(--ink-3);
+    text-align: center;
+    max-width: 360px;
+    line-height: 1.6;
+  }
+  .example-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    pointer-events: all;
+    margin-top: 4px;
+  }
+  .example-pill {
+    padding: 5px 12px;
+    border: 1px solid var(--rule);
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--ink-2);
+    background: var(--paper);
+    transition: border-color 0.1s, color 0.1s;
+    font-family: var(--sans);
+  }
+  .example-pill:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Loading overlay */
+  #loading {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(250,249,246,0.85);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 10;
+  }
+  #loading.show { display: flex; }
+  .spinner {
+    width: 32px; height: 32px;
+    border: 2px solid var(--rule);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-text { font-size: 13px; color: var(--ink-3); font-family: var(--sans); }
+
+  /* Error */
+  #error-msg {
+    display: none;
+    position: absolute;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fff5f5;
+    border: 1px solid #fca5a5;
+    color: #991b1b;
+    font-size: 12px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    z-index: 20;
+  }
+
+  /* Graph tooltip */
+  #tooltip {
+    position: absolute;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    pointer-events: none;
+    display: none;
+    z-index: 50;
+    max-width: 220px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  .tt-name { font-family: var(--serif); font-weight: 500; font-size: 13px; margin-bottom: 2px; }
+  .tt-affil { color: var(--ink-3); font-size: 11px; }
+  .tt-cite { color: var(--accent); font-size: 11px; margin-top: 4px; }
+
+  /* Graph nodes */
+  .node-circle { cursor: pointer; transition: opacity 0.15s; }
+  .node-circle:hover { opacity: 0.85; }
+  .node-label { pointer-events: none; font-family: var(--sans); fill: var(--ink-2); }
+
+  /* Legend */
+  #legend {
+    position: absolute;
+    bottom: 1rem;
+    right: 1rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 11px;
+    display: none;
+  }
+  .legend-title { font-weight: 500; color: var(--ink-3); margin-bottom: 6px; letter-spacing: 0.05em; text-transform: uppercase; font-size: 10px; }
+  .legend-row { display: flex; align-items: center; gap: 6px; margin: 4px 0; color: var(--ink-2); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Graph controls */
+  #graph-controls {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    display: none;
+  }
+  .ctrl-btn {
+    width: 28px; height: 28px;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    background: var(--paper);
+    cursor: pointer;
+    font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-2);
+    transition: background 0.1s;
+  }
+  .ctrl-btn:hover { background: var(--paper-2); }
+
+  #graph-hint {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    color: var(--ink-3);
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 4px 10px;
+    display: none;
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">
+    <span class="wordmark-dot"></span>
+    LabMap
+  </div>
+
+  <div class="search-bar">
+    <div class="search-mode-toggle">
+      <button class="mode-btn active" id="mode-scholar" onclick="setMode('scholar')">Scholar</button>
+      <button class="mode-btn" id="mode-field" onclick="setMode('field')">Field</button>
+    </div>
+    <input id="search-input" type="text" placeholder="Search for a researcher or field…" autocomplete="off" />
+    <button id="search-btn" onclick="doSearch()">Map →</button>
+  </div>
+
+  <div class="header-meta">Semantic Scholar · Last 5 years</div>
+</header>
+
+<div class="app-body">
+  <!-- Sidebar -->
+  <div id="sidebar">
+    <!-- Stats (shown after search) -->
+    <div class="sidebar-section" id="stats-section" style="display:none">
+      <div class="sidebar-label">Graph overview</div>
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-num" id="stat-scholars">0</div><div class="stat-lbl">Scholars</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-links">0</div><div class="stat-lbl">Links</div></div>
+        <div class="stat-card"><div class="stat-num" id="stat-papers">0</div><div class="stat-lbl">Papers</div></div>
+      </div>
+    </div>
+
+    <!-- Scholar list -->
+    <div class="sidebar-section" id="scholar-list-section" style="display:none; flex:1; overflow-y:auto; padding-bottom:1.25rem;">
+      <div class="sidebar-label" id="list-label">Researchers</div>
+      <div id="scholar-list"></div>
+    </div>
+
+    <!-- Detail panel -->
+    <div id="detail-panel">
+      <button class="back-btn" onclick="showList()">← Back to list</button>
+      <div class="detail-name" id="det-name"></div>
+      <div class="detail-affil" id="det-affil"></div>
+      <div class="detail-stats">
+        <div class="detail-stat"><div class="detail-stat-n" id="det-papers">—</div><div class="detail-stat-l">Recent papers</div></div>
+        <div class="detail-stat"><div class="detail-stat-n" id="det-cites">—</div><div class="detail-stat-l">Citations</div></div>
+      </div>
+
+      <div class="detail-tabs">
+        <button class="detail-tab active" onclick="switchTab('pubs')">Publications</button>
+        <button class="detail-tab" onclick="switchTab('summary')">Lab Summary</button>
+      </div>
+
+      <!-- Publications tab -->
+      <div class="tab-panel active" id="tab-pubs">
+        <div class="pubs-list" id="det-pubs"></div>
+      </div>
+
+      <!-- Lab Summary tab -->
+      <div class="tab-panel" id="tab-summary">
+        <button class="summary-btn" id="summary-btn" onclick="generateSummary()">
+          ✦ Generate lab summary
+        </button>
+        <div id="summary-content"></div>
+      </div>
+    </div>
+
+    <!-- Empty sidebar state -->
+    <div style="padding:1.5rem; color:var(--ink-3); font-size:12px; line-height:1.6;" id="sidebar-empty">
+      <p style="font-family:var(--serif); font-size:0.95rem; color:var(--ink-2); margin-bottom:8px;">Start mapping</p>
+      <p>Search for a <strong>researcher</strong> to see their collaborative network, or a <strong>field</strong> to explore who works in that area.</p>
+    </div>
+  </div>
+
+  <!-- Graph area -->
+  <div id="graph-area">
+    <div id="empty-state">
+      <div class="empty-title">Map the research landscape</div>
+      <div class="empty-sub">Connect scholars, trace collaborations, and navigate fields of study.</div>
+      <div class="example-pills">
+        <button class="example-pill" onclick="loadExample('Yoshua Bengio', 'scholar')">Yoshua Bengio</button>
+        <button class="example-pill" onclick="loadExample('Jennifer Doudna', 'scholar')">Jennifer Doudna</button>
+        <button class="example-pill" onclick="loadExample('cancer transcriptomics', 'field')">cancer transcriptomics</button>
+        <button class="example-pill" onclick="loadExample('single cell RNA', 'field')">single cell RNA</button>
+        <button class="example-pill" onclick="loadExample('Fei-Fei Li', 'scholar')">Fei-Fei Li</button>
+      </div>
+    </div>
+
+    <svg id="graph-svg"></svg>
+
+    <div id="loading">
+      <div class="spinner"></div>
+      <div class="loading-text" id="loading-text">Fetching from Semantic Scholar…</div>
+    </div>
+
+    <div id="error-msg"></div>
+    <div id="tooltip">
+      <div class="tt-name" id="tt-name"></div>
+      <div class="tt-affil" id="tt-affil"></div>
+      <div class="tt-cite" id="tt-cite"></div>
+    </div>
+
+    <div id="legend">
+      <div class="legend-title">Node size = citations</div>
+      <div id="legend-rows"></div>
+    </div>
+
+    <div id="graph-controls">
+      <button class="ctrl-btn" title="Zoom in" onclick="zoomIn()">+</button>
+      <button class="ctrl-btn" title="Zoom out" onclick="zoomOut()">−</button>
+      <button class="ctrl-btn" title="Reset view" onclick="resetView()" style="font-size:11px">⊙</button>
+    </div>
+
+    <div id="graph-hint">Click a node to inspect · Drag to explore</div>
+  </div>
+</div>
+
+<script>
+const S2_BASE = 'https://api.semanticscholar.org/graph/v1';
+const YEAR_MIN = new Date().getFullYear() - 5;
+
+let searchMode = 'scholar';
+let graphData = { nodes: [], links: [] };
+let simulation = null;
+let svg_g = null;
+let zoom_obj = null;
+let selectedAuthorId = null;
+let nodeColorMap = {};
+let currentDetailNode = null;
+let currentDetailPapers = [];
+
+// Palette for field clusters
+const FIELD_COLORS = ['#2d5a8e','#7a3b1e','#2d6b4a','#5a3b7a','#6b4a1a','#3b6b6b','#6b2d4a'];
+
+function setMode(m) {
+  searchMode = m;
+  document.getElementById('mode-scholar').classList.toggle('active', m === 'scholar');
+  document.getElementById('mode-field').classList.toggle('active', m === 'field');
+  document.getElementById('search-input').placeholder = m === 'scholar'
+    ? 'e.g. Jennifer Doudna, Andrew Ng…'
+    : 'e.g. cancer transcriptomics, quantum computing…';
+}
+
+document.getElementById('search-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doSearch();
+});
+
+function loadExample(q, mode) {
+  setMode(mode);
+  document.getElementById('search-input').value = q;
+  doSearch();
+}
+
+async function doSearch() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  if (searchMode === 'scholar') await searchScholar(q);
+  else await searchField(q);
+}
+
+function showLoading(msg) {
+  document.getElementById('loading-text').textContent = msg || 'Fetching from Semantic Scholar…';
+  document.getElementById('loading').classList.add('show');
+  document.getElementById('error-msg').style.display = 'none';
+}
+
+function hideLoading() {
+  document.getElementById('loading').classList.remove('show');
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 5000);
+}
+
+async function apiFetch(url) {
+  const r = await fetch(url, { headers: { 'x-api-key': '' } });
+  if (!r.ok) throw new Error(`API error ${r.status}`);
+  return r.json();
+}
+
+// ── Scholar mode ──────────────────────────────────────────────────────────────
+async function searchScholar(query) {
+  showLoading('Searching for researcher…');
+  try {
+    // 1. Find author
+    const search = await apiFetch(
+      `${S2_BASE}/author/search?query=${encodeURIComponent(query)}&fields=name,affiliations,paperCount,citationCount,hIndex&limit=1`
+    );
+    if (!search.data || !search.data.length) throw new Error('No researcher found. Try a different name.');
+
+    const author = search.data[0];
+    showLoading(`Loading papers for ${author.name}…`);
+
+    // 2. Get their recent papers
+    const papers = await apiFetch(
+      `${S2_BASE}/author/${author.authorId}/papers?fields=title,year,authors,citationCount&limit=50`
+    );
+
+    const recentPapers = (papers.data || []).filter(p => p.year && p.year >= YEAR_MIN);
+
+    // 3. Build co-author network from recent papers
+    const coauthorMap = {};
+    let totalCites = 0;
+
+    recentPapers.forEach(paper => {
+      totalCites += paper.citationCount || 0;
+      (paper.authors || []).forEach(a => {
+        if (a.authorId === author.authorId) return;
+        if (!coauthorMap[a.authorId]) coauthorMap[a.authorId] = { name: a.name, papers: [], strength: 0 };
+        coauthorMap[a.authorId].papers.push(paper.paperId);
+        coauthorMap[a.authorId].strength++;
+      });
+    });
+
+    // 4. Fetch details for top co-authors
+    const topCoauthors = Object.entries(coauthorMap)
+      .sort((a, b) => b[1].strength - a[1].strength)
+      .slice(0, 15);
+
+    showLoading('Loading collaborator profiles…');
+    const coDetailPromises = topCoauthors.map(async ([id, meta]) => {
+      try {
+        const d = await apiFetch(`${S2_BASE}/author/${id}?fields=name,affiliations,citationCount,paperCount`);
+        return { ...d, sharedPapers: meta.strength };
+      } catch { return { authorId: id, name: meta.name, citationCount: 0, sharedPapers: meta.strength, affiliations: [] }; }
+    });
+    const coDetails = await Promise.all(coDetailPromises);
+
+    // 5. Build graph
+    const centerNode = {
+      id: author.authorId,
+      name: author.name,
+      affiliation: (author.affiliations || [])[0] || '',
+      citations: author.citationCount || 0,
+      papers: recentPapers.length,
+      totalPapers: author.paperCount || 0,
+      isCenter: true,
+      recentPapers: recentPapers.slice(0, 10)
+    };
+
+    const coNodes = coDetails.map(c => ({
+      id: c.authorId,
+      name: c.name,
+      affiliation: (c.affiliations || [])[0] || '',
+      citations: c.citationCount || 0,
+      papers: c.paperCount || 0,
+      sharedPapers: c.sharedPapers,
+      isCenter: false,
+      recentPapers: []
+    }));
+
+    const nodes = [centerNode, ...coNodes];
+    const links = coDetails.map(c => ({
+      source: author.authorId,
+      target: c.authorId,
+      strength: c.sharedPapers
+    }));
+
+    // Color by shared paper count quartile
+    nodeColorMap = {};
+    nodeColorMap[centerNode.id] = '#1a1814';
+    coNodes.forEach((n, i) => { nodeColorMap[n.id] = FIELD_COLORS[0]; });
+
+    renderGraph(nodes, links, author.name, recentPapers.length, totalCites);
+    renderSidebar(nodes, recentPapers.length, links.length, author.name);
+    hideLoading();
+  } catch (e) {
+    hideLoading();
+    showError(e.message || 'Search failed. Please try again.');
+  }
+}
+
+// ── Field mode ────────────────────────────────────────────────────────────────
+async function searchField(query) {
+  showLoading('Searching field publications…');
+  try {
+    // Search recent papers in field
+    const bulk = await apiFetch(
+      `${S2_BASE}/paper/search?query=${encodeURIComponent(query)}&fields=title,year,authors,citationCount&limit=100&year=${YEAR_MIN}-`
+    );
+
+    const papers = (bulk.data || []).filter(p => p.year && p.year >= YEAR_MIN);
+    if (!papers.length) throw new Error('No recent papers found for this field.');
+
+    showLoading('Mapping researchers in this field…');
+
+    // Count author frequencies
+    const authorFreq = {};
+    papers.forEach(paper => {
+      (paper.authors || []).forEach(a => {
+        if (!authorFreq[a.authorId]) authorFreq[a.authorId] = { name: a.name, papers: [], citations: 0 };
+        authorFreq[a.authorId].papers.push(paper);
+        authorFreq[a.authorId].citations += paper.citationCount || 0;
+      });
+    });
+
+    // Top authors by paper count
+    const topAuthors = Object.entries(authorFreq)
+      .sort((a, b) => b[1].papers.length - a[1].papers.length)
+      .slice(0, 20);
+
+    showLoading('Loading researcher profiles…');
+    const authorDetails = await Promise.all(
+      topAuthors.map(async ([id, meta]) => {
+        try {
+          const d = await apiFetch(`${S2_BASE}/author/${id}?fields=name,affiliations,citationCount`);
+          return { ...d, fieldPapers: meta.papers.length, fieldCites: meta.citations };
+        } catch {
+          return { authorId: id, name: meta.name, affiliations: [], citationCount: meta.citations, fieldPapers: meta.papers.length, fieldCites: meta.citations };
+        }
+      })
+    );
+
+    // Build co-author links among top authors
+    const topIds = new Set(topAuthors.map(([id]) => id));
+    const linkMap = {};
+
+    papers.forEach(paper => {
+      const papTop = (paper.authors || []).filter(a => topIds.has(a.authorId));
+      for (let i = 0; i < papTop.length; i++) {
+        for (let j = i + 1; j < papTop.length; j++) {
+          const key = [papTop[i].authorId, papTop[j].authorId].sort().join('|');
+          linkMap[key] = (linkMap[key] || 0) + 1;
+        }
+      }
+    });
+
+    const nodes = authorDetails.map(a => ({
+      id: a.authorId,
+      name: a.name,
+      affiliation: (a.affiliations || [])[0] || '',
+      citations: a.citationCount || 0,
+      papers: a.fieldPapers,
+      isCenter: false,
+      recentPapers: []
+    }));
+
+    const links = Object.entries(linkMap).map(([key, strength]) => {
+      const [source, target] = key.split('|');
+      return { source, target, strength };
+    });
+
+    // Color by cluster (connected components)
+    nodeColorMap = {};
+    nodes.forEach((n, i) => { nodeColorMap[n.id] = FIELD_COLORS[i % FIELD_COLORS.length]; });
+
+    const totalPapers = papers.length;
+    const totalCites = papers.reduce((s, p) => s + (p.citationCount || 0), 0);
+
+    renderGraph(nodes, links, query, totalPapers, totalCites);
+    renderSidebar(nodes, totalPapers, links.length, `"${query}"`);
+    hideLoading();
+  } catch (e) {
+    hideLoading();
+    showError(e.message || 'Search failed. Please try again.');
+  }
+}
+
+// ── Graph rendering ───────────────────────────────────────────────────────────
+function renderGraph(nodes, links, label, papers, cites) {
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('legend').style.display = 'block';
+  document.getElementById('graph-controls').style.display = 'flex';
+  document.getElementById('graph-hint').style.display = 'block';
+
+  const svgEl = document.getElementById('graph-svg');
+  svgEl.innerHTML = '';
+
+  const W = svgEl.clientWidth || 800;
+  const H = svgEl.clientHeight || 600;
+
+  const svgD3 = d3.select('#graph-svg');
+
+  zoom_obj = d3.zoom()
+    .scaleExtent([0.2, 4])
+    .on('zoom', (e) => svg_g.attr('transform', e.transform));
+
+  svgD3.call(zoom_obj);
+
+  svg_g = svgD3.append('g');
+
+  // Citation scale
+  const citeExtent = d3.extent(nodes, n => n.citations || 0);
+  const rScale = d3.scaleSqrt()
+    .domain([0, Math.max(citeExtent[1], 1)])
+    .range([7, 30]);
+
+  // Link scale
+  const strExtent = d3.extent(links, l => l.strength || 1);
+  const wScale = d3.scaleLinear()
+    .domain([strExtent[0] || 1, Math.max(strExtent[1], 1)])
+    .range([0.5, 3]);
+
+  // Simulation
+  simulation = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(d => 80 + 30 / (d.strength || 1)).strength(0.4))
+    .force('charge', d3.forceManyBody().strength(-220))
+    .force('center', d3.forceCenter(W / 2, H / 2))
+    .force('collision', d3.forceCollide().radius(d => rScale(d.citations || 0) + 8));
+
+  // Links
+  const linkSel = svg_g.append('g')
+    .selectAll('line')
+    .data(links)
+    .join('line')
+    .attr('stroke', '#d8d4cc')
+    .attr('stroke-width', d => wScale(d.strength || 1))
+    .attr('stroke-opacity', 0.7);
+
+  // Nodes
+  const nodeSel = svg_g.append('g')
+    .selectAll('g')
+    .data(nodes)
+    .join('g')
+    .attr('cursor', 'pointer')
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) simulation.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+      .on('drag', (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end', (e, d) => { if (!e.active) simulation.alphaTarget(0); d.fx = null; d.fy = null; })
+    )
+    .on('click', (e, d) => showDetail(d))
+    .on('mouseover', (e, d) => showTooltip(e, d))
+    .on('mouseout', hideTooltip);
+
+  nodeSel.append('circle')
+    .attr('r', d => rScale(d.citations || 0))
+    .attr('fill', d => d.isCenter ? '#1a1814' : (nodeColorMap[d.id] || FIELD_COLORS[0]))
+    .attr('fill-opacity', d => d.isCenter ? 1 : 0.75)
+    .attr('stroke', d => d.isCenter ? '#1a1814' : (nodeColorMap[d.id] || FIELD_COLORS[0]))
+    .attr('stroke-width', 1)
+    .attr('stroke-opacity', 0.3);
+
+  nodeSel.append('text')
+    .text(d => d.name.split(' ').slice(-1)[0]) // Last name only
+    .attr('text-anchor', 'middle')
+    .attr('dy', d => rScale(d.citations || 0) + 12)
+    .attr('font-size', 10)
+    .attr('font-family', 'DM Sans, system-ui, sans-serif')
+    .attr('fill', '#4a4740')
+    .attr('pointer-events', 'none');
+
+  // Tick
+  simulation.on('tick', () => {
+    linkSel
+      .attr('x1', d => d.source.x)
+      .attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x)
+      .attr('y2', d => d.target.y);
+    nodeSel.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+
+  // Legend
+  document.getElementById('legend-rows').innerHTML = `
+    <div class="legend-row"><div class="legend-dot" style="background:#1a1814"></div> Query scholar</div>
+    <div class="legend-row"><div class="legend-dot" style="background:${FIELD_COLORS[0]}"></div> Co-author / peer</div>
+  `;
+
+  graphData = { nodes, links };
+}
+
+function showTooltip(e, d) {
+  const tt = document.getElementById('tooltip');
+  document.getElementById('tt-name').textContent = d.name;
+  document.getElementById('tt-affil').textContent = d.affiliation || 'Affiliation unknown';
+  document.getElementById('tt-cite').textContent = d.citations ? `${d.citations.toLocaleString()} citations` : '';
+  tt.style.display = 'block';
+  tt.style.left = (e.offsetX + 14) + 'px';
+  tt.style.top = (e.offsetY - 10) + 'px';
+}
+function hideTooltip() { document.getElementById('tooltip').style.display = 'none'; }
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function renderSidebar(nodes, papers, links, label) {
+  document.getElementById('sidebar-empty').style.display = 'none';
+  document.getElementById('stats-section').style.display = 'block';
+  document.getElementById('scholar-list-section').style.display = 'block';
+  document.getElementById('detail-panel').style.display = 'none';
+
+  document.getElementById('stat-scholars').textContent = nodes.length;
+  document.getElementById('stat-links').textContent = links;
+  document.getElementById('stat-papers').textContent = papers;
+  document.getElementById('list-label').textContent = `Researchers (${nodes.length})`;
+
+  const listEl = document.getElementById('scholar-list');
+  listEl.innerHTML = '';
+
+  const sorted = [...nodes].sort((a, b) => (b.citations || 0) - (a.citations || 0));
+  sorted.forEach(n => {
+    const div = document.createElement('div');
+    div.className = 'scholar-card';
+    div.onclick = () => showDetail(n);
+    div.innerHTML = `
+      <div class="scholar-name">${escHtml(n.name)}</div>
+      <div class="scholar-affil">${escHtml(n.affiliation || 'Affiliation unknown')}</div>
+      <div class="scholar-tags">
+        ${n.citations ? `<span class="tag">${n.citations.toLocaleString()} cites</span>` : ''}
+        ${n.papers ? `<span class="tag">${n.papers} papers</span>` : ''}
+      </div>
+    `;
+    listEl.appendChild(div);
+  });
+}
+
+function showDetail(d) {
+  document.getElementById('scholar-list-section').style.display = 'none';
+  document.getElementById('detail-panel').style.display = 'block';
+
+  // Reset tabs to Publications
+  switchTab('pubs');
+
+  // Reset summary state for new scholar
+  document.getElementById('summary-btn').style.display = 'flex';
+  document.getElementById('summary-btn').disabled = false;
+  document.getElementById('summary-content').innerHTML = '';
+
+  currentDetailNode = d;
+
+  document.getElementById('det-name').textContent = d.name;
+  document.getElementById('det-affil').textContent = d.affiliation || 'Affiliation unknown';
+  document.getElementById('det-papers').textContent = d.papers || '—';
+  document.getElementById('det-cites').textContent = d.citations ? d.citations.toLocaleString() : '—';
+
+  const pubsEl = document.getElementById('det-pubs');
+
+  if (d.recentPapers && d.recentPapers.length) {
+    currentDetailPapers = d.recentPapers;
+    pubsEl.innerHTML = d.recentPapers.map(p => `
+      <div class="pub-item">
+        ${escHtml(p.title)}
+        <div class="pub-year">${p.year} · ${p.citationCount || 0} citations</div>
+      </div>
+    `).join('');
+  } else {
+    currentDetailPapers = [];
+    pubsEl.innerHTML = '<div style="font-size:12px;color:var(--ink-3)">Loading publications…</div>';
+    apiFetch(`${S2_BASE}/author/${d.id}/papers?fields=title,year,citationCount,abstract&limit=50`)
+      .then(data => {
+        const recent = (data.data || [])
+          .filter(p => p.year && p.year >= YEAR_MIN)
+          .sort((a, b) => (b.year - a.year) || ((b.citationCount || 0) - (a.citationCount || 0)));
+        currentDetailPapers = recent;
+        if (!recent.length) { pubsEl.innerHTML = '<div style="font-size:12px;color:var(--ink-3)">No recent papers found.</div>'; return; }
+        pubsEl.innerHTML = recent.map(p => `
+          <div class="pub-item">
+            ${escHtml(p.title)}
+            <div class="pub-year">${p.year} · ${p.citationCount || 0} citations</div>
+          </div>
+        `).join('');
+      })
+      .catch(() => { pubsEl.innerHTML = '<div style="font-size:12px;color:var(--ink-3)">Could not load publications.</div>'; });
+  }
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.detail-tab').forEach((btn, i) => {
+    btn.classList.toggle('active', (i === 0 && tab === 'pubs') || (i === 1 && tab === 'summary'));
+  });
+  document.getElementById('tab-pubs').classList.toggle('active', tab === 'pubs');
+  document.getElementById('tab-summary').classList.toggle('active', tab === 'summary');
+}
+
+async function generateSummary() {
+  const node = currentDetailNode;
+  if (!node) return;
+
+  const btn = document.getElementById('summary-btn');
+  const contentEl = document.getElementById('summary-content');
+
+  btn.disabled = true;
+  btn.style.display = 'none';
+  contentEl.innerHTML = `
+    <div class="summary-loading">
+      <div class="summary-spinner"></div>
+      <span>Fetching papers and abstracts…</span>
+    </div>`;
+
+  try {
+    // Fetch papers with abstracts if we don't have them yet
+    let papers = currentDetailPapers;
+    if (!papers.length || !papers[0].abstract) {
+      const data = await apiFetch(`${S2_BASE}/author/${node.id}/papers?fields=title,year,citationCount,abstract&limit=50`);
+      papers = (data.data || [])
+        .filter(p => p.year && p.year >= YEAR_MIN)
+        .sort((a, b) => (b.citationCount || 0) - (a.citationCount || 0));
+      currentDetailPapers = papers;
+    }
+
+    if (!papers.length) throw new Error('No recent papers to summarize.');
+
+    contentEl.querySelector('span').textContent = 'Generating lab summary with AI…';
+
+    // Build context for Claude
+    const papersText = papers.slice(0, 30).map((p, i) =>
+      `[${i+1}] "${p.title}" (${p.year}, ${p.citationCount || 0} citations)${p.abstract ? '\nAbstract: ' + p.abstract.slice(0, 400) : ''}`
+    ).join('\n\n');
+
+    const prompt = `You are analyzing the research output of ${node.name}${node.affiliation ? ` (${node.affiliation})` : ''} based on their publications from the past 5 years.
+
+Here are their recent papers:
+
+${papersText}
+
+Write a concise lab research brief in the following JSON format ONLY, no markdown, no preamble:
+{
+  "overview": "2-3 sentence overview of the lab's primary research focus and scientific identity",
+  "themes": ["theme 1", "theme 2", "theme 3", "theme 4"],
+  "active_directions": "1-2 sentences on what they seem to be actively pursuing most recently",
+  "methods": "1 sentence on key methodologies or experimental approaches used",
+  "impact": "1 sentence on notable contributions or most-cited work"
+}`;
+
+    const response = await fetch('/api/summarize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt })
+    });
+
+    if (!response.ok) throw new Error('AI summary failed.');
+    const aiData = await response.json();
+    const rawText = (aiData.content || []).map(c => c.text || '').join('').trim();
+
+    let summary;
+    try {
+      summary = JSON.parse(rawText.replace(/```json|```/g, '').trim());
+    } catch {
+      throw new Error('Could not parse summary response.');
+    }
+
+    contentEl.innerHTML = `
+      <div class="summary-body">
+        <div class="summary-section">
+          <div class="summary-section-title">Research focus</div>
+          <p>${escHtml(summary.overview)}</p>
+        </div>
+        <div class="summary-section">
+          <div class="summary-section-title">Key themes</div>
+          <div>${(summary.themes || []).map(t => `<span class="theme-pill">${escHtml(t)}</span>`).join('')}</div>
+        </div>
+        <div class="summary-section">
+          <div class="summary-section-title">Active directions</div>
+          <p>${escHtml(summary.active_directions)}</p>
+        </div>
+        <div class="summary-section">
+          <div class="summary-section-title">Methods</div>
+          <p>${escHtml(summary.methods)}</p>
+        </div>
+        <div class="summary-section">
+          <div class="summary-section-title">Notable impact</div>
+          <p>${escHtml(summary.impact)}</p>
+        </div>
+        <div style="font-size:10px;color:var(--ink-3);margin-top:12px;border-top:1px solid var(--rule);padding-top:8px;">
+          Based on ${papers.length} papers (${YEAR_MIN}–present) · Powered by Claude
+        </div>
+      </div>`;
+  } catch (e) {
+    contentEl.innerHTML = `<div style="font-size:12px;color:var(--ink-3);padding:8px 0">${escHtml(e.message || 'Summary failed. Please try again.')}</div>`;
+    btn.style.display = 'flex';
+    btn.disabled = false;
+  }
+}
+
+function showList() {
+  document.getElementById('detail-panel').style.display = 'none';
+  document.getElementById('scholar-list-section').style.display = 'block';
+}
+
+// ── Zoom controls ─────────────────────────────────────────────────────────────
+function zoomIn() { d3.select('#graph-svg').transition().call(zoom_obj.scaleBy, 1.4); }
+function zoomOut() { d3.select('#graph-svg').transition().call(zoom_obj.scaleBy, 0.7); }
+function resetView() {
+  const el = document.getElementById('graph-svg');
+  d3.select('#graph-svg').transition().call(
+    zoom_obj.transform,
+    d3.zoomIdentity.translate(el.clientWidth / 2, el.clientHeight / 2).scale(1)
+  );
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
